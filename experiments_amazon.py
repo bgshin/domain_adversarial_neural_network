@@ -25,7 +25,10 @@ def main():
     print("Fit...")
     algo = DANN(lambda_adapt=lambda_adapt, hidden_layer_size=hidden_layer_size, learning_rate=learning_rate,
                 maxiter=maxiter, epsilon_init=None, seed=12342, adversarial_representation=adversarial, verbose=True)
-    algo.fit(xs, ys, xt, xv, yv)
+
+    for i in range(100000):
+        for j in range(100000):
+            algo.fit(xs, ys, xt, xv, yv)
 
     print("Predict...")
     prediction_train = algo.predict(xs)
@@ -127,5 +130,10 @@ def compute_proxy_distance(source_X, target_X, verbose=False):
 
 
 if __name__ == '__main__':
+    import platform
+    print platform.system(), 'hi'
     main()
 
+    with open('a.txt', 'rt') as hh:
+        for l in hh:
+            print l

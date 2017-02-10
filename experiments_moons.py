@@ -3,6 +3,8 @@ from sklearn.datasets import make_moons
 from sklearn.decomposition import PCA
 from matplotlib.colors import ListedColormap
 from DANN import DANN
+# import matplotlib.pyplot as plt
+
 
 from matplotlib import pyplot
 from scipy.spatial.distance import cdist
@@ -152,6 +154,8 @@ def run_pca(X, y, Xt, algo, special_points=None, special_xytext=None, mult=None)
 
 
 if __name__ == '__main__':
+    # import platform
+    # print platform.system()
     main()
         
         
