@@ -64,16 +64,25 @@ class DANN(object):
         # d = tf.get_variable("d", [num_classes])
 
         self.GdGfXs = tf.nn.softmax(tf.matmul(self.feature_xs, U) + d)
+        self.GdGfXs_sigmoid = tf.nn.sigmoid(tf.matmul(self.feature_xs, U) + d)
         print 'self.GdGfXs.get_shape()', self.GdGfXs.get_shape()
 
         self.feature_xt = tf.nn.sigmoid(tf.matmul(self.xt, W) + b)
         print 'self.feature_xt.get_shape()', self.feature_xt.get_shape()
         self.GdGfXt = tf.nn.softmax(tf.matmul(self.feature_xt, U) + d)
+        self.GdGfXt_sigmoid = tf.nn.sigmoid(tf.matmul(self.feature_xt, U) + d)
         print 'self.GdGfXt.get_shape()', self.GdGfXt.get_shape()
 
         self.classifier_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.GyGfXs, self.ys))
-        self.discriminator_source_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.GdGfXs, self.domain_s))
-        self.discriminator_target_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.GdGfXt, self.domain_t))
+
+        # self.discriminator_source_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.GdGfXs, self.domain_s))
+        # self.discriminator_target_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.GdGfXt, self.domain_t))
+
+        self.discriminator_source_loss = tf.reduce_mean(tf.log(self.GdGfXs_sigmoid))
+        self.discriminator_target_loss = tf.reduce_mean(tf.log(1-self.GdGfXt_sigmoid))
+
+
+
         self.total_cost = self.classifier_loss - \
                           self.adapt_lambda* (self.discriminator_source_loss+self.discriminator_target_loss)
 
@@ -83,18 +92,27 @@ class DANN(object):
         self.classifier_acc = tf.reduce_mean(tf.cast(self.classifier_predictions, "float"),
                                                    name="classifier_acc")
 
-        self.discriminator_predictions_s = tf.equal(tf.argmax(self.domain_s, 1), tf.argmax(self.GdGfXs , 1))
+
+        # self.discriminator_predictions_s = tf.equal(tf.argmax(self.domain_s, 1), tf.argmax(self.GdGfXs, 1))
+        # self.discriminator_accuracy_s = tf.reduce_mean(tf.cast(self.discriminator_predictions_s, "float"),
+        #                                                name="discriminator_accuracy_s")
+
+        self.discriminator_predictions_s = tf.greater_equal(self.GdGfXs, 0.5)
         self.discriminator_accuracy_s = tf.reduce_mean(tf.cast(self.discriminator_predictions_s, "float"),
                                                    name="discriminator_accuracy_s")
 
         print 'self.domain_t', self.domain_t
         print 'self.GdGfXt', self.GdGfXt
 
-        self.discriminator_predictions_t = tf.equal(tf.argmax(self.domain_t, 1), tf.argmax(self.GdGfXt, 1))
+        # self.discriminator_predictions_t = tf.equal(tf.argmax(self.domain_t, 1), tf.argmax(self.GdGfXt, 1))
+        # self.discriminator_accuracy_t = tf.reduce_mean(tf.cast(self.discriminator_predictions_t, "float"),
+        #                                                name="discriminator_accuracy_t")
+
+        self.discriminator_predictions_t = tf.greater_equal(self.GdGfXs, 0.5)
         self.discriminator_accuracy_t = tf.reduce_mean(tf.cast(self.discriminator_predictions_t, "float"),
                                                        name="discriminator_accuracy_t")
 
-        self.discriminator_acc = self.discriminator_accuracy_s + self.discriminator_accuracy_t
+        self.discriminator_acc = (self.discriminator_accuracy_s + self.discriminator_accuracy_t)/2
 
         print 'self.classifier_loss', self.classifier_loss
         print 'self.discriminator_source_loss', self.discriminator_source_loss

@@ -87,15 +87,14 @@ def load_amazon(source_name, target_name, data_folder=None):
 #
 #     return 2 * (1. - 2 * best_risk)
 
-def train(xs_train, ys_train, xt_train, yt_train, xs_dev, ys_dev, xt_dev, yt_dev):
-
+def train(xs_train, ys_train, xt_train, yt_train, xs_dev, ys_dev, xt_dev, yt_dev, x_tst, y_tst):
     #Model Hyperparameters
     tf.flags.DEFINE_integer("embedding_dim", 5000, "Dimensionality of character embedding (default: 5000")
     tf.flags.DEFINE_float("adapt_lambda", 1.0, "Domain classifier regularizaion lambda (default: 1.0)")
     tf.flags.DEFINE_float("learning_rate", 0.05, "Learning rate (default: 0.05)")
 
     # Training parameters
-    tf.flags.DEFINE_integer("batch_size", 32, "Batch Size (default: 64)")
+    tf.flags.DEFINE_integer("batch_size", 128, "Batch Size (default: 64)")
     tf.flags.DEFINE_integer("num_epochs", 10, "Number of training epochs (default: 200)")
     tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after this many steps (default: 100)")
     tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
@@ -136,7 +135,8 @@ def train(xs_train, ys_train, xt_train, yt_train, xs_dev, ys_dev, xt_dev, yt_dev
         op_discriminator = tf.train.AdamOptimizer(FLAGS.learning_rate)
 
         grad_classifier = op_classifier.compute_gradients(model.total_cost, var_list=var_list_classifier)
-        grad_discriminator = op_discriminator.compute_gradients(model.total_neg_cost, var_list=var_list_discriminator)
+        grad_discriminator = op_discriminator.compute_gradients(model.total_cost, var_list=var_list_discriminator)
+        # grad_discriminator = op_discriminator.compute_gradients(model.total_neg_cost, var_list=var_list_discriminator)
 
         train_op_classifier = op_classifier.apply_gradients(grad_classifier, global_step=global_step)
         train_op_discriminator = op_discriminator.apply_gradients(grad_discriminator, global_step=global_step)
@@ -171,10 +171,10 @@ def train(xs_train, ys_train, xt_train, yt_train, xs_dev, ys_dev, xt_dev, yt_dev
                      model.discriminator_source_loss, model.discriminator_target_loss, model.total_cost,
                      model.classifier_acc, model.discriminator_acc], feed_dict)
                 time_str = datetime.datetime.now().isoformat()
-                print(
-                "{}: step {}, c_loss {:g}, ds_loss {:g}, dt_loss {:g}, loss{:g}, c_acc {:g}, d_acc {:g}".format(
-                    time_str, step, classifier_loss, discriminator_source_loss, discriminator_target_loss, total_cost,
-                    classifier_acc, discriminator_acc))
+                # print(
+                # "{}: step {}, c_loss {:g}, ds_loss {:g}, dt_loss {:g}, loss{:g}, c_acc {:g}, d_acc {:g}".format(
+                #     time_str, step, classifier_loss, discriminator_source_loss, discriminator_target_loss, total_cost,
+                #     classifier_acc, discriminator_acc))
 
             def dev_step(xs_batch, ys_batch, xt_batch, ds_batch, dt_batch, lam):
                 """
@@ -198,6 +198,29 @@ def train(xs_train, ys_train, xt_train, yt_train, xs_dev, ys_dev, xt_dev, yt_dev
                     "{}: step {}, c_loss {:g}, ds_loss {:g}, dt_loss {:g}, loss{:g}, c_acc {:g}, d_acc {:g}".format(
                         time_str, step, classifier_loss, discriminator_source_loss, discriminator_target_loss,
                         total_cost,
+                        classifier_acc, discriminator_acc))
+
+            def test_target(xtest, ytest, lam):
+                """
+                Evaluates model on a dev set
+                """
+                ds_label = np.tile([0., 1.], [len(ytest), 1])
+                dt_label = np.tile([0., 1.], [len(ytest), 1])
+
+                feed_dict = {
+                    model.xs: xtest,
+                    model.ys: ytest,
+                    model.xt: xtest,
+                    model.domain_s: ds_label,
+                    model.domain_t: dt_label,
+                    model.adapt_lambda: lam,
+                }
+                step, classifier_acc, discriminator_acc = sess.run(
+                    [global_step, model.classifier_acc, model.discriminator_acc], feed_dict)
+                time_str = datetime.datetime.now().isoformat()
+                print(
+                    "{}: step {}, c_acc {:g}, d_acc {:g}".format(
+                        time_str, step,
                         classifier_acc, discriminator_acc))
 
             # tf.initialize_all_variables().run()
@@ -229,7 +252,7 @@ def train(xs_train, ys_train, xt_train, yt_train, xs_dev, ys_dev, xt_dev, yt_dev
                     current_step = tf.train.global_step(sess, global_step)
                     if current_step % FLAGS.evaluate_every == 0:
                         ds_label = np.tile([1., 0.], [len(ys_dev), 1])
-                        dt_label = np.tile([1., 0.], [len(yt_dev), 1])
+                        dt_label = np.tile([0., 1.], [len(yt_dev), 1])
 
                         print("\nEvaluation:")
                         dev_step(xs_dev, ys_dev, xt_dev, ds_label, dt_label, l)
@@ -238,14 +261,13 @@ def train(xs_train, ys_train, xt_train, yt_train, xs_dev, ys_dev, xt_dev, yt_dev
                         path = saver.save(sess, checkpoint_prefix, global_step=current_step)
                         print("Saved model checkpoint to {}\n".format(path))
 
+            test_target(x_tst, y_tst, l)
 
-def test(xtest, ytest_hot):
-    print 'd'
 
 def main():
     data_folder = '../data/' # where the datasets are
-    source_name = 'books'   # source domain: books, dvd, kitchen, or electronics
-    target_name = 'dvd'     # traget domain: books, dvd, kitchen, or electronics
+    source_name = 'kitchen'   # source domain: books, dvd, kitchen, or electronics
+    target_name = 'books'     # traget domain: books, dvd, kitchen, or electronics
 
 
     ##Loading pre-embedded data
@@ -279,7 +301,7 @@ def main():
 
 
     print("Training...")
-    train(xs, ys_hot, xt, yt_hot, x_valid_s, y_valid_s_hot, x_valid_t, y_valid_t_hot)
+    train(xs, ys_hot, xt, yt_hot, x_valid_s, y_valid_s_hot, x_valid_t, y_valid_t_hot, xtest, ytest_hot)
 
     print("Evaluating...")
     # test(xtest, ytest_hot)
