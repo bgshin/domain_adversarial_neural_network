@@ -27,8 +27,8 @@ class DANN(object):
             V = tf.Variable(tf.truncated_normal([hidden_layer_size, num_classes], stddev=0.1), name='V')
             c = tf.Variable(tf.truncated_normal([num_classes], stddev=0.1), name='c')
             # c = tf.constant(0.1, shape=[num_classes])
-            U = tf.Variable(tf.truncated_normal([hidden_layer_size, num_classes], stddev=0.1), name='U')
-            d = tf.Variable(tf.truncated_normal([num_classes], stddev=0.1), name='d')
+            U = tf.Variable(tf.truncated_normal([hidden_layer_size, 1], stddev=0.1), name='U')
+            d = tf.Variable(tf.truncated_normal([1], stddev=0.1), name='d')
             # d = tf.constant(0.1, shape=[num_classes])
 
         # with tf.variable_scope('Feature_Extractor'):
@@ -63,15 +63,15 @@ class DANN(object):
         # U = tf.get_variable("U", [hidden_layer_size, num_classes])
         # d = tf.get_variable("d", [num_classes])
 
-        self.GdGfXs = tf.nn.softmax(tf.matmul(self.feature_xs, U) + d)
+        # self.GdGfXs = tf.nn.softmax(tf.matmul(self.feature_xs, U) + d)
         self.GdGfXs_sigmoid = tf.nn.sigmoid(tf.matmul(self.feature_xs, U) + d)
-        print 'self.GdGfXs.get_shape()', self.GdGfXs.get_shape()
+        print 'self.GdGfXs_sigmoid.get_shape()', self.GdGfXs_sigmoid.get_shape()
 
         self.feature_xt = tf.nn.sigmoid(tf.matmul(self.xt, W) + b)
         print 'self.feature_xt.get_shape()', self.feature_xt.get_shape()
-        self.GdGfXt = tf.nn.softmax(tf.matmul(self.feature_xt, U) + d)
+        # self.GdGfXt = tf.nn.softmax(tf.matmul(self.feature_xt, U) + d)
         self.GdGfXt_sigmoid = tf.nn.sigmoid(tf.matmul(self.feature_xt, U) + d)
-        print 'self.GdGfXt.get_shape()', self.GdGfXt.get_shape()
+        print 'self.GdGfXt_sigmoid.get_shape()', self.GdGfXt_sigmoid.get_shape()
 
         self.classifier_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(self.GyGfXs, self.ys))
 
@@ -97,18 +97,18 @@ class DANN(object):
         # self.discriminator_accuracy_s = tf.reduce_mean(tf.cast(self.discriminator_predictions_s, "float"),
         #                                                name="discriminator_accuracy_s")
 
-        self.discriminator_predictions_s = tf.greater_equal(self.GdGfXs, 0.5)
+        self.discriminator_predictions_s = tf.greater_equal(self.GdGfXs_sigmoid, 0.5)
         self.discriminator_accuracy_s = tf.reduce_mean(tf.cast(self.discriminator_predictions_s, "float"),
                                                    name="discriminator_accuracy_s")
 
         print 'self.domain_t', self.domain_t
-        print 'self.GdGfXt', self.GdGfXt
+        print 'self.GdGfXt_sigmoid', self.GdGfXt_sigmoid
 
         # self.discriminator_predictions_t = tf.equal(tf.argmax(self.domain_t, 1), tf.argmax(self.GdGfXt, 1))
         # self.discriminator_accuracy_t = tf.reduce_mean(tf.cast(self.discriminator_predictions_t, "float"),
         #                                                name="discriminator_accuracy_t")
 
-        self.discriminator_predictions_t = tf.greater_equal(self.GdGfXs, 0.5)
+        self.discriminator_predictions_t = tf.greater_equal(self.GdGfXt_sigmoid, 0.5)
         self.discriminator_accuracy_t = tf.reduce_mean(tf.cast(self.discriminator_predictions_t, "float"),
                                                        name="discriminator_accuracy_t")
 

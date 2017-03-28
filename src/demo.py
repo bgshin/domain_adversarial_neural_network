@@ -94,7 +94,7 @@ def train(xs_train, ys_train, xt_train, yt_train, xs_dev, ys_dev, xt_dev, yt_dev
     tf.flags.DEFINE_float("learning_rate", 0.05, "Learning rate (default: 0.05)")
 
     # Training parameters
-    tf.flags.DEFINE_integer("batch_size", 128, "Batch Size (default: 64)")
+    tf.flags.DEFINE_integer("batch_size", 60, "Batch Size (default: 64)")
     tf.flags.DEFINE_integer("num_epochs", 10, "Number of training epochs (default: 200)")
     tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after this many steps (default: 100)")
     tf.flags.DEFINE_integer("checkpoint_every", 100, "Save model after this many steps (default: 100)")
@@ -166,10 +166,11 @@ def train(xs_train, ys_train, xt_train, yt_train, xs_dev, ys_dev, xt_dev, yt_dev
                     model.adapt_lambda: lam,
                 }
                 _, _, step, classifier_loss, discriminator_source_loss, discriminator_target_loss, total_cost, \
-                classifier_acc, discriminator_acc = sess.run(
+                classifier_acc, discriminator_acc, dpreds, dpredt = sess.run(
                     [train_op_classifier, train_op_discriminator, global_step, model.classifier_loss,
                      model.discriminator_source_loss, model.discriminator_target_loss, model.total_cost,
-                     model.classifier_acc, model.discriminator_acc], feed_dict)
+                     model.classifier_acc, model.discriminator_acc,
+                     model.discriminator_predictions_s, model.discriminator_predictions_t], feed_dict)
                 time_str = datetime.datetime.now().isoformat()
                 # print(
                 # "{}: step {}, c_loss {:g}, ds_loss {:g}, dt_loss {:g}, loss{:g}, c_acc {:g}, d_acc {:g}".format(
@@ -242,7 +243,8 @@ def train(xs_train, ys_train, xt_train, yt_train, xs_dev, ys_dev, xt_dev, yt_dev
             for epoch in range(FLAGS.num_epochs):
                 for i in range(num_batches):
                     p = float(i) / num_batches
-                    l = 2. / (1. + np.exp(-10. * p)) - 1
+                    l = 0.1
+                    # l = 2. / (1. + np.exp(-10. * p)) - 1
                     lr = 0.01 / (1. + 10 * p) ** 0.75
 
                     Xs, Ys = gen_source_batch.next()
